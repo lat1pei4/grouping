@@ -1,5 +1,7 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { ToastAction } from "@/components/ui/toast";
+import { useToast } from "@/components/ui/use-toast";
 
 // Import your table and select components here
 import {
@@ -67,10 +69,7 @@ const initialUna2 = [[], [], [], [], [], []];
 function Home() {
   const [una1, setUna1] = useState(initialUna1);
   const [una2, setUna2] = useState(initialUna2);
-
-  useEffect(() => {
-    validateUnaArrays(una1, una2);
-  }, [una1, una2, validateUnaArrays]);
+  const { toast } = useToast();
 
   function isInSameSubArray(arr, num1, num2) {
     // Loop through each sub-array in arr
@@ -98,41 +97,54 @@ function Home() {
     return false;
   }
 
-  function validateUnaArrays(una1, una2) {
-    // Validate each sub-array in una2
+  function validateUnaArrays() {
     for (const subArray2 of una2) {
-      // Generate all pairs from subArray2
       for (let i = 0; i < subArray2.length; i++) {
         for (let j = i + 1; j < subArray2.length; j++) {
           const num1 = subArray2[i];
           const num2 = subArray2[j];
-
-          // Check if this pair is in the same sub-array in una1
           if (isInSameSubArray(una1, num1, num2)) {
-            console.log(
-              `Invalid pair found: (${num1}, ${num2}) in sub-array [${subArray2.join(
-                ", "
-              )}]`
-            );
-            return false; // Return false if any invalid pair is found
+            const message = `[${subArray2.join(
+              ","
+            )}]のグルーブの中に無効なペアが見つかりました:${
+              classList[num1].name
+            }と${classList[num2].name} `;
+
+            console.log(message);
+            toast({
+              variant: "destructive",
+              description: message,
+            });
+            return false;
           }
         }
       }
     }
-
-    // If no invalid pairs are found, return true
     console.log("All pairs are valid.");
     return true;
   }
 
   const handleSelectChange = (rowIndex, cellIndex, newValue) => {
-    const updatedUna2 = una2.map((row, i) =>
-      i === rowIndex
-        ? [...row.slice(0, cellIndex), newValue, ...row.slice(cellIndex + 1)]
-        : row
-    );
-    setUna2(updatedUna2);
+    setUna2((prevUna2) => {
+      // Create a deep copy of the array to avoid mutating the original state
+      const newUna2 = prevUna2.map((row, index) => {
+        if (index === rowIndex) {
+          // Make a copy of the row to modify
+          const newRow = [...row];
+          // Update the specific cell with the new value
+          newRow[cellIndex] = newValue;
+          return newRow;
+        }
+        return row; // Return unchanged row for other indices
+      });
+      return newUna2; // Return the new state array
+    });
   };
+
+  useEffect(() => {
+    validateUnaArrays(una1, una2);
+    console.log(una1, una2);
+  }, [una2]);
 
   return (
     <>
@@ -175,7 +187,7 @@ function TableComponent({ title, data, editable = false, onValueChange }) {
                       }
                     >
                       <SelectTrigger className="w-[100%]">
-                        <SelectValue placeholder="Select Name" />
+                        <SelectValue placeholder="名前" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
